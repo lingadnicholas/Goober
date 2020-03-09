@@ -5,6 +5,7 @@
 #include <vector>
 // ExpandableHashMap.h
 
+
 // Skeleton for the ExpandableHashMap class template.  You must implement the first six
 // member functions.
 
@@ -62,7 +63,7 @@ private:
 	int m_bucketsFilled; 
 	std::vector<std::list<Pair>> m_associationsTable; //a vector of lists.
 
-	//Free all memory from linked lists. 
+	//Empty all linked lists 
 	void freeLists()
 	{
 		for (int n = 0; n < m_numBuckets; n++)
@@ -76,6 +77,11 @@ private:
 				}
 			}
 		}
+	}
+	unsigned int retHash(const KeyType& k) const
+	{
+	unsigned int hasher(const KeyType& k); //prototype
+	return hasher(k) % m_numBuckets; //Returns the bucketNum key should be in!
 	}
 
 };
@@ -119,8 +125,7 @@ void ExpandableHashMap<KeyType, ValueType>::associate(const KeyType& key, const 
 		return; 
 	}
 
-	unsigned int hash(const KeyType& k); //prototype
-	unsigned int bucketNum = hash(key) % m_numBuckets; //Returns a number between 0 and m_numBuckets 
+	unsigned int bucketNum = retHash(key); //Returns a number between 0 and m_numBuckets
 
 	//Check if creating a new association would overload the max load
 	if (m_associationsTable[bucketNum].empty()) 
@@ -145,7 +150,7 @@ void ExpandableHashMap<KeyType, ValueType>::associate(const KeyType& key, const 
 					auto it = m_associationsTable[n].begin(); 
 					while (it != m_associationsTable[n].end())
 					{
-						unsigned int newHash = hash(it->m_key) % m_numBuckets; 
+						unsigned int newHash = retHash(it->m_key); 
 
 						newTable[newHash].push_back(Pair(it->m_key, it->m_value)); 
 						++it; 
@@ -163,7 +168,7 @@ void ExpandableHashMap<KeyType, ValueType>::associate(const KeyType& key, const 
 			m_associationsTable.resize(m_numBuckets); 
 			m_associationsTable = newTable; 
 			//Rehash the most recent association according to the new bucket size. 
-			bucketNum = hash(key) % m_numBuckets; 
+			bucketNum = retHash(key); 
 		}
 	}
 	//Now insert.
@@ -178,8 +183,8 @@ const ValueType* ExpandableHashMap<KeyType, ValueType>::find(const KeyType& key)
 {
 	if (m_numAssociations == 0) //If there is nothing, return a nullptr
 		return nullptr; 
-	unsigned int hash(const KeyType & k); //prototype
-	unsigned int bucketNum = hash(key) % m_numBuckets; //Returns the bucketNum key should be in!
+
+	unsigned int bucketNum = retHash(key); //Returns the bucketNum key should be in!
 	if (!m_associationsTable[bucketNum].empty())
 	{
 		auto it = m_associationsTable[bucketNum].begin();
@@ -193,7 +198,7 @@ const ValueType* ExpandableHashMap<KeyType, ValueType>::find(const KeyType& key)
 			++it;
 		}
 	}
-
 	return nullptr;  // Not found
 }
 #endif //EXPANDABLEHASHMAP_H
+

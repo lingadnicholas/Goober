@@ -1,3 +1,4 @@
+/*
 #include "provided.h"
 #include "ExpandableHashMap.h"
 #include <iostream>
@@ -7,7 +8,8 @@
 #include <vector>
 #include <cassert>
 using namespace std;
-int main()
+
+void test1()
 {
     GeoCoord first;
     GeoCoord second("34.0555267", "118.4796954");
@@ -44,10 +46,8 @@ int main()
     hashing.associate(tenth, 10);
     hashing.associate(eleventh, 10);
     cout << "All tests passed" << endl; 
-
-    //Error destructing 
 }
-/*
+
 bool loadDeliveryRequests(string deliveriesFile, GeoCoord& depot, vector<DeliveryRequest>& v);
 bool parseDelivery(string line, string& lat, string& lon, string& item);
 
@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
         cout << "Unable to load map data file " << argv[1] << endl;
         return 1;
     }
-
+    
     GeoCoord depot;
     vector<DeliveryRequest> deliveries;
     if (!loadDeliveryRequests(argv[2], depot, deliveries))
@@ -142,4 +142,32 @@ bool parseDelivery(string line, string& lat, string& lon, string& item)
     }
     return true;
 }
+
 */
+
+#include "provided.h"
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <list>
+using namespace std;
+
+int main()
+{
+    StreetMap sm;
+
+    sm.load("C:\\Users\\linga\\OneDrive - UCLA IT Services\\Project4\\mapdata.txt");
+    PointToPointRouter p(&sm);
+
+    GeoCoord start("34.0625329", "-118.4470263");
+    GeoCoord end("34.0636533", "-118.4470480");
+    list <StreetSegment> seg;
+    vector <StreetSegment> segs;
+    double dist;
+
+    sm.getSegmentsThatStartWith(start, segs);
+    p.generatePointToPointRoute(start, end, seg, dist);
+    cout << "Done" << endl; 
+}
