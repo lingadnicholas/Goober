@@ -3,6 +3,9 @@
 #include <list>
 #include <set>
 #include <stack>
+#include <cfloat>
+#include <map>
+#include <queue> 
 using namespace std;
 using pPair = pair<double, pair<GeoCoord, GeoCoord>>;
 
@@ -32,18 +35,26 @@ private:
             return true;
         return false; 
     }
-    double calculateHValue(const GeoCoord& cur, const GeoCoord& dest) const
-    {
-        return distanceEarthMiles(cur, dest); 
-    }
 
     struct Node 
     {
         StreetSegment thisSeg;
-        StreetSegment parent; 
-        bool checked = false; 
+        Node* parent; 
         // f = g + h 
         double f = FLT_MAX, g = FLT_MAX, h=FLT_MAX; 
+
+        bool operator<(const Node& rh)
+        {
+            if (thisSeg.start.latitude < rh.thisSeg.start.latitude && thisSeg.start.longitude < rh.thisSeg.start.longitude)
+                return true;
+            return false;
+        }
+        bool operator==(const Node& rh)
+        {
+            if (thisSeg.start == rh.thisSeg.start && thisSeg.end == rh.thisSeg.end)
+                return true;
+            return false;
+        }
     };
 
 
@@ -67,38 +78,54 @@ private:
     }
 
     //Traces the path from the source to the destination
-    void tracePath(ExpandableHashMap<GeoCoord, list<Node>>& map, StreetSegment dest, list<StreetSegment>& route, double& totalDistanceTravelled) const
+    void tracePath(map<double, Node>& closedList, GeoCoord start, list<StreetSegment>& route, double& totalDistanceTravelled) const
     {
         //We use a stack because we are going from the destination to the source. 
+        auto beginning = closedList.find(0);
         totalDistanceTravelled = 0; 
         stack<StreetSegment> path;
-        GeoCoord startDest = dest.start;
-        GeoCoord endDest = dest.end; 
-        list<Node>* nodes = map.find(startDest); //Returns the list where the node is
-        Node* cur = findNode(nodes, dest); 
-        while (cur->parent.start != startDest) //While the current segment != the destination
+        
+        Node curNode = beginning->second; 
+       for(;;) //While the current segment != the destination
         {
-            path.push(cur->thisSeg);
-            //I want to get tempNode's parent. 
-            StreetSegment temp = cur->parent; 
-            startDest = temp.start;
-            totalDistanceTravelled += distanceEarthMiles(cur->thisSeg.start, cur->parent.start); 
-            nodes = map.find(startDest);
-            cur = findNode(nodes, dest);
+           StreetSegment curSeg = curNode.thisSeg; 
+           path.push(curSeg); 
+           totalDistanceTravelled += distanceEarthMiles(curSeg.end, curSeg.start); 
+           if (curNode.parent == nullptr || curSeg.start == start)
+               break;
+           curNode = *curNode.parent; 
         }
-
-  
-        path.push(dest);
-
 
         while (!path.empty())
         {
             route.push_back(path.top());
             path.pop();
         }
-        return;
     }
 
+    //Traces the path from the source to the destination
+    void tracePath(Node* end, GeoCoord start, list<StreetSegment>& route, double& totalDistanceTravelled) const
+    {
+        //We use a stack because we are going from the destination to the source. 
+        totalDistanceTravelled = 0;
+        stack<StreetSegment> path;
+        
+        for(;;)
+        {
+            StreetSegment curSeg = end->thisSeg; 
+            path.push(curSeg);
+            totalDistanceTravelled += distanceEarthMiles(curSeg.end, curSeg.start);
+            if (end->parent == nullptr || curSeg.start == start)
+                break; 
+            end = end->parent; 
+        }
+
+        while (!path.empty())
+        {
+            route.push_back(path.top());
+            path.pop();
+        }
+    }
 };
 
 PointToPointRouterImpl::PointToPointRouterImpl(const StreetMap* sm)
@@ -116,8 +143,8 @@ DeliveryResult PointToPointRouterImpl::generatePointToPointRoute(
         list<StreetSegment>& route,
         double& totalDistanceTravelled) const
 {
-    //aStarSearch 
-    if (isValid(end))
+
+    if (!isValid(end))
         return BAD_COORD; 
     if (isDestination(start, end))
     {
@@ -125,171 +152,119 @@ DeliveryResult PointToPointRouterImpl::generatePointToPointRoute(
         totalDistanceTravelled = 0; 
         return DELIVERY_SUCCESS; 
     }
+    
+    //Initialize open list and closed list 
+    map<double, Node> openList; 
+    map<double, Node> closedList; 
+
     vector<StreetSegment> segs; 
-    ExpandableHashMap<GeoCoord, list<Node>> closedList; 
-
     m_streetMap->getSegmentsThatStartWith(start, segs); 
-    Node push;
-    list<Node> li; 
-    push.f = 0; push.g = 0; push.h = 0; 
-    push.thisSeg.start = start;
-    push.parent.start = start;
+    if (segs.empty())
+        return NO_ROUTE;
+
+    //Ugliness: Initialize the first Node of the open list. 
+    Node push; 
+    push.h = distanceEarthMiles(start, end); 
+    push.g = 0;
+    push.f = push.h; 
+    push.thisSeg.start = start; 
     push.thisSeg.end = segs[0].end; 
-    push.parent.end = segs[0].end;
-    li.push_back(push); 
-    closedList.associate(start, li); 
+    push.thisSeg.name = segs[0].name; 
+    push.parent = nullptr; 
+    openList[push.f] = push;
+    //End of the mess 
 
-    set<pPair> openList; 
-    openList.insert(make_pair(0, make_pair(start, push.thisSeg.end)));
-
+    //Search for a route 
     while (!openList.empty())
     {
-        pPair cur = *openList.begin(); 
-
-        //Remove this f/Geocoord pairing from the open list
+        Node current = openList.begin()->second;
         openList.erase(openList.begin()); 
 
-        //Add this to the closed list. 
-        Node newNo;
-        StreetSegment seg;
-        seg.start = cur.second.first; 
-        seg.end = cur.second.second;
-        newNo.thisSeg = seg;
-        newNo.parent = seg;
-        list<Node>* curNodes;
-        curNodes = closedList.find(cur.second.first);
-        //Create new association if you need to.
-        //Otherwise, push it back to where it belongs. 
-        if (curNodes == nullptr)
-        {
-            list<Node> newLi;
-            
-            newLi.push_back(newNo);
-            closedList.associate(cur.second.first, newLi); 
-            curNodes = closedList.find(cur.second.first); 
-        }
-        else
-        {
-            curNodes->push_back(newNo); 
-        }
+        //Push onto closed list 
+        closedList[current.f] = current;
 
-        Node* curNode = findNode(curNodes, newNo.thisSeg); //CURRENT SEGMENT
+        auto parentItr = closedList.find(current.f); 
+        Node* parent = &(parentItr->second);
 
         //Find the successors
         //Possible successors are those whose starts points == current endpoint. 
         //OR those whose start points == current startpoint (and don't == this one) 
         vector<StreetSegment> endSuccessors;
-        vector<StreetSegment> startSuccessors; 
-        m_streetMap->getSegmentsThatStartWith(curNode->thisSeg.end, endSuccessors);
-        m_streetMap->getSegmentsThatStartWith(curNode->thisSeg.start, startSuccessors); 
-        auto it = startSuccessors.begin(); 
+        vector<StreetSegment> startSuccessors;
+        GeoCoord endSuc(current.thisSeg.end); 
+
+        GeoCoord startSuc(current.thisSeg.end); 
+        m_streetMap->getSegmentsThatStartWith(endSuc, endSuccessors);
+        m_streetMap->getSegmentsThatStartWith(startSuc, startSuccessors);
+        auto it = startSuccessors.begin();
         while (it != startSuccessors.end())
         {
-            //Remove the one that duplicates this one. 
-            if (*it == curNode->thisSeg)
+            //Remove the street segment that duplicates this one. 
+            if (*it == current.thisSeg)
                 it = startSuccessors.erase(it);
             else
-                ++it; 
+                ++it;
         }
 
         //Put both vectors into one combined vector. 
-        vector<StreetSegment> combined = endSuccessors; 
+        vector<StreetSegment> combined = endSuccessors;
         if (!startSuccessors.empty())
         {
-            it = startSuccessors.begin(); 
+            it = startSuccessors.begin();
             while (it != startSuccessors.end())
             {
-                combined.push_back(*it); 
-                ++it; 
+                combined.push_back(*it);
+                ++it;
             }
         }
-
-        //Store the 'g', 'h', and 'f' of successors 
-        double gNew, hNew, fNew; 
-        StreetSegment* lowest = nullptr; 
-        //Keeping a pointer to the segment with the lowest f value, check this vector
-        it = combined.begin(); 
-        while (it != endSuccessors.end())
+        
+        //For each neighbor
+        auto combinedIt = combined.begin();
+        for (int i = 0; combinedIt != combined.end(); i++, ++combinedIt)
         {
-            //This iterator's segment
-            StreetSegment s; s.start = it->start; s.end = end;
+            //Get all the information for this new neighbor
+            double newg = 0, newh = 0, newf = 0;
+  
+            //This part is a mess...... I'm just initializing and pushing neighbors
+            Node neighbor;
+            //Set coordinates
+            GeoCoord neighborStart(combined[i].start);
+            GeoCoord neighborEnd(combined[i].end); 
+            neighbor.thisSeg.start = neighborStart;
+            neighbor.thisSeg.end = neighborEnd;
+            neighbor.thisSeg.name = combined[i].name; 
+            //Set g, h, f
+            newg = distanceEarthMiles(current.thisSeg.start, neighbor.thisSeg.start);
+            newh = distanceEarthMiles(combined[i].end, end); //Distance to end
+            newf = newg + newh;
+            neighbor.f = newf; neighbor.h = newf; neighbor.g = newg;
+            neighbor.parent = parent;  //Set parent
+            //End of the mess
 
-            if (isDestination(it->start, end))
+            //If neighbor's ending coordinate is the goal, stop the search
+          
+            if (neighbor.thisSeg.end == end) 
             {
-                //Set the parent of the destination in the closed list
-                list<Node>* ptr = closedList.find(it->start); 
-                Node* destNode = findNode(ptr, s);
-                destNode->parent = curNode->thisSeg; 
-                route.clear();
-                tracePath(closedList, s, route, totalDistanceTravelled); 
-                return DELIVERY_SUCCESS; 
-            }
-            else 
+                //Push neighbor and current onto closedList 
+                neighbor.f = 0; 
+                closedList[neighbor.f] = neighbor; 
+                closedList[current.f] = current;
+                tracePath(closedList, start, route, totalDistanceTravelled); 
+                return DELIVERY_SUCCESS;
+            } 
+
+
+
+            auto openFound = openList.find(newf); 
+            auto closedFound = closedList.find(newf);
+            //If not found, add neighbor to open list, so we can examine its neighbors. 
+            if (openFound == openList.end() && closedFound == closedList.end())
             {
-                list<Node>* ptr = closedList.find(it->start); 
-                bool onClosed = false; 
-                //Check if not on closed list
-                if (ptr != nullptr)
-                {
-                    Node* checkPtr = findNode(ptr, s); 
-                    if (checkPtr != nullptr)
-                        onClosed = true; 
-                }
-                //If it's NOT on the closed list, then
-                if (!onClosed)
-                {
-                    //Calculate the g, h, and f
-                    //g: distance from Start of current segment to this segment
-                    //h: distance from start of this segment to destination
-                    gNew = distanceEarthMiles(curNode->thisSeg.start, it->start);
-                    hNew = distanceEarthMiles(it->start, end); 
-                    fNew = gNew + hNew; 
-                  
-                    //Create new Node and pPair
-                    Node newToClosed;
-                    list<Node> newList; 
-                    newToClosed.thisSeg.start = it->start; 
-                    newToClosed.thisSeg.end = it->end; 
-                    newToClosed.f = fNew;
-                    newToClosed.g = gNew; 
-                    newToClosed.h = hNew; 
-                    newToClosed.parent = curNode->thisSeg; 
-                    newList.push_back(newToClosed); 
-                    pPair findThis;
-
-                    findThis.first = FLT_MAX;
-                    findThis.second.first = newToClosed.thisSeg.start; 
-                    findThis.second.second = newToClosed.thisSeg.end;
-                    //If it isn't on the open list, add to open list 
-                    //Or if it's on the list already, check to see if this path 
-                    //Is better
-                    auto it = openList.find(findThis); 
-                    if (it != openList.end() || it->first > fNew)
-                    {
-                        openList.insert(make_pair(fNew, findThis.second));
-
-                        //Update the details of this 
-                        //Create an association if necessary
-                        if (ptr == nullptr)
-                            closedList.associate(it->second.first, newList);
-                        else //Otherwise push the node onto where it belongs. Or update that node
-                        {
-                            Node* update;
-                            if (update = findNode(ptr, newToClosed.thisSeg))
-                            {
-                                update->f = fNew; update->g = gNew; update->h = hNew; 
-                                update->parent = curNode->thisSeg; 
-                            }
-                            else
-                            ptr->push_back(newToClosed);
-                        }
-                    }
-                }
+                openList[newf] = neighbor; 
             }
-            ++it;
-
         }
     }
+    
     return NO_ROUTE; //Somehow got here. 
 }
 
