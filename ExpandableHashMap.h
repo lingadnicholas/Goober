@@ -193,7 +193,6 @@ const ValueType* ExpandableHashMap<KeyType, ValueType>::find(const KeyType& key)
 			if (it->m_key == key)
 			{
 				return &(it->m_value); //Set ptr to point to the value of the key.
-				break;
 			}
 			++it;
 		}

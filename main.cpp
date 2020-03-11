@@ -1,4 +1,4 @@
-/*
+
 #include "provided.h"
 #include "ExpandableHashMap.h"
 #include <iostream>
@@ -8,6 +8,93 @@
 #include <vector>
 #include <cassert>
 using namespace std;
+void test4()
+{
+        StreetMap sm;
+
+        sm.load("C:\\Users\\linga\\OneDrive - UCLA IT Services\\Project4\\mapdata.txt");
+        PointToPointRouter p(&sm);
+
+        GeoCoord start("34.0625329", "-118.4470263");
+        //GeoCoord end("34.0636533", "-118.4470480");
+        GeoCoord end("34.0636344", "-118.4482275");
+        //GeoCoord end("34.0593696","-118.4455875");
+
+        list <StreetSegment> seg;
+        vector <StreetSegment> segs;
+        double dist;
+
+
+        //testing deliveries
+        GeoCoord depot = start;
+        vector<DeliveryRequest> deliveries;
+        deliveries.push_back(DeliveryRequest("popcorn", GeoCoord("34.0712323", "-118.4505969")));
+        deliveries.push_back(DeliveryRequest("cake", GeoCoord("34.0687443", "-118.4449195")));
+        deliveries.push_back(DeliveryRequest("coffee", GeoCoord("34.0685657", "-118.4489289")));
+        deliveries.push_back(DeliveryRequest("pizza", GeoCoord("34.0718238", "-118.4525699")));
+
+        deliveries.push_back(DeliveryRequest("coffee", GeoCoord("34.0666168", "-118.4395786")));
+
+
+        DeliveryPlanner dp(&sm);
+        vector<DeliveryCommand> dcs;
+        double totalMiles;
+
+        dp.generateDeliveryPlan(depot, deliveries, dcs, totalMiles);
+
+        cout << totalMiles;
+}
+void test3()
+{
+        StreetMap sm;
+
+        sm.load("C:\\Users\\linga\\OneDrive - UCLA IT Services\\Project4\\mapdata.txt");
+        PointToPointRouter p(&sm);
+
+        GeoCoord start("34.0625329", "-118.4470263");
+        GeoCoord end("34.0636533", "-118.4470480");
+        //GeoCoord end("34.0636344", "-118.4482275");
+        list <StreetSegment> seg;
+        vector <StreetSegment> segs;
+        double dist;
+
+        sm.getSegmentsThatStartWith(start, segs);
+        p.generatePointToPointRoute(start, end, seg, dist);
+
+        //testing deliveries
+        GeoCoord depot = end;
+        vector<DeliveryRequest> deliveries;
+        deliveries.push_back(DeliveryRequest("popcorn", GeoCoord("34.0636344", "-118.4482275")));
+        deliveries.push_back(DeliveryRequest("cake", GeoCoord("34.0608001", "-118.4457307")));
+        deliveries.push_back(DeliveryRequest("coffee", GeoCoord("34.0438832", "-118.4950204")));
+        deliveries.push_back(DeliveryRequest("soda", GeoCoord("34.0666168", "-118.4395786")));
+
+        DeliveryPlanner dp(&sm);
+        vector<DeliveryCommand> dcs;
+        double totalMiles;
+
+        dp.generateDeliveryPlan(depot, deliveries, dcs, totalMiles);
+        cout << totalMiles;
+  
+
+}
+void test2()
+{
+    StreetMap sm;
+
+    sm.load("C:\\Users\\linga\\OneDrive - UCLA IT Services\\Project4\\mapdata.txt");
+    PointToPointRouter p(&sm);
+
+    GeoCoord start("34.0625329", "-118.4470263");
+    GeoCoord end("34.0636533", "-118.4470480");
+    list <StreetSegment> seg;
+    vector <StreetSegment> segs;
+    double dist;
+
+    sm.getSegmentsThatStartWith(start, segs);
+    p.generatePointToPointRoute(start, end, seg, dist);
+    cout << "Done" << endl;
+}
 
 void test1()
 {
@@ -51,31 +138,28 @@ void test1()
 bool loadDeliveryRequests(string deliveriesFile, GeoCoord& depot, vector<DeliveryRequest>& v);
 bool parseDelivery(string line, string& lat, string& lon, string& item);
 
-int main(int argc, char *argv[])
+int main()
 {
-    if (argc != 3)
-    {
-        cout << "Usage: " << argv[0] << " mapdata.txt deliveries.txt" << endl;
-        return 1;
-    }
-
     StreetMap sm;
-        
-    if (!sm.load(argv[1]))
+    //"C:\\Users\\linga\\OneDrive - UCLA IT Services\\Project4\\mapdata.txt"
+    //"E:\\OneDrive - UCLA IT Services\\Project4\\mapdata.txt"
+    if (!sm.load("mapdata.txt"))
     {
-        cout << "Unable to load map data file " << argv[1] << endl;
+        std::cout << "Unable to load map data file " << endl;
         return 1;
     }
     
     GeoCoord depot;
     vector<DeliveryRequest> deliveries;
-    if (!loadDeliveryRequests(argv[2], depot, deliveries))
+    //"C:\\Users\\linga\\OneDrive - UCLA IT Services\\Project4\\deliveries.txt"
+    //"E:\\OneDrive - UCLA IT Services\\Project4\\deliveries.txt"
+    if (!loadDeliveryRequests("deliveries.txt", depot, deliveries))
     {
-        cout << "Unable to load delivery request file " << argv[2] << endl;
+        std::cout << "Unable to load delivery request file " << endl;
         return 1;
     }
 
-    cout << "Generating route...\n\n";
+    std::cout << "Generating route...\n\n";
 
     DeliveryPlanner dp(&sm);
     vector<DeliveryCommand> dcs;
@@ -83,21 +167,21 @@ int main(int argc, char *argv[])
     DeliveryResult result = dp.generateDeliveryPlan(depot, deliveries, dcs, totalMiles);
     if (result == BAD_COORD)
     {
-        cout << "One or more depot or delivery coordinates are invalid." << endl;
+        std::cout << "One or more depot or delivery coordinates are invalid." << endl;
         return 1;
     }
     if (result == NO_ROUTE)
     {
-        cout << "No route can be found to deliver all items." << endl;
+        std::cout << "No route can be found to deliver all items." << endl;
         return 1;
     }
-    cout << "Starting at the depot...\n";
+    std::cout << "Starting at the depot...\n";
     for (const auto& dc : dcs)
-        cout << dc.description() << endl;
-    cout << "You are back at the depot and your deliveries are done!\n";
-    cout.setf(ios::fixed);
-    cout.precision(2);
-    cout << totalMiles << " miles travelled for all deliveries." << endl;
+        std::cout << dc.description() << endl;
+    std::cout << "You are back at the depot and your deliveries are done!\n";
+    std::cout.setf(ios::fixed);
+    std::cout.precision(2);
+    std::cout << totalMiles << " miles travelled for all deliveries." << endl;
 }
 
 bool loadDeliveryRequests(string deliveriesFile, GeoCoord& depot, vector<DeliveryRequest>& v)
@@ -141,33 +225,9 @@ bool parseDelivery(string line, string& lat, string& lon, string& item)
         return false;
     }
     return true;
+
+    
 }
 
-*/
 
-#include "provided.h"
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <vector>
-#include <list>
-using namespace std;
 
-int main()
-{
-    StreetMap sm;
-
-    sm.load("C:\\Users\\linga\\OneDrive - UCLA IT Services\\Project4\\mapdata.txt");
-    PointToPointRouter p(&sm);
-
-    GeoCoord start("34.0625329", "-118.4470263");
-    GeoCoord end("34.0636533", "-118.4470480");
-    list <StreetSegment> seg;
-    vector <StreetSegment> segs;
-    double dist;
-
-    sm.getSegmentsThatStartWith(start, segs);
-    p.generatePointToPointRoute(start, end, seg, dist);
-    cout << "Done" << endl; 
-}

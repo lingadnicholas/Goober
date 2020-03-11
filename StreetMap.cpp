@@ -11,6 +11,10 @@ unsigned int hasher(const GeoCoord& g)
 {
     return std::hash<std::string>()(g.latitudeText + g.longitudeText);
 }
+unsigned int hasher(const double& d)
+{
+    return std::hash<double>()(d); 
+}
 
 class StreetMapImpl
 {
@@ -74,8 +78,13 @@ bool StreetMapImpl::load(std::string mapFile)
             street.name = name;
 
             infile >> B.latitudeText >> B.longitudeText >> E.latitudeText >> E.longitudeText;
+            B.latitude = stod(B.latitudeText); 
+            B.longitude = stod(B.longitudeText);
+            E.latitude = stod(E.latitudeText);
+            E.longitude = stod(E.longitudeText); 
             street.start = B;
             street.end = E;
+            
             streetSegs.push_back(street);
 
             auto it = streetSegs.begin();
