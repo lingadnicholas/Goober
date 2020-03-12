@@ -15,10 +15,6 @@ unsigned int hasher(const double& d)
 {
     return std::hash<double>()(d); 
 }
-unsigned int hasher(const StreetSegment& s)
-{
-    return std::hash<std::string>()(s.start.latitudeText + s.start.longitudeText + s.end.latitudeText + s.end.longitudeText); 
-}
 
 class StreetMapImpl
 {
@@ -46,9 +42,6 @@ bool StreetMapImpl::load(std::string mapFile)
     std::ifstream infile(mapFile); 
     if (!infile)
         return false;
-    
-   
-
     //This will hold each street, which will then get pushed into mapData. 
 
     std::string name;
@@ -96,7 +89,6 @@ bool StreetMapImpl::load(std::string mapFile)
            
         } 
         infile.ignore(10000, '\n');
-
     }
     return true; 
 }

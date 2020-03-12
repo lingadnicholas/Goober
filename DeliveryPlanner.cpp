@@ -20,6 +20,7 @@ private:
     //Proceed is true if command is proceed, false if command is turn
     string angleToDir(double angle, bool& proceed) const;
 
+    //Does all the routing for the planner (turns, proceeds)
     DeliveryResult findRoute(const GeoCoord& start,
         const GeoCoord& end,
         list<StreetSegment>& route,
@@ -43,30 +44,39 @@ DeliveryResult DeliveryPlannerImpl::generateDeliveryPlan(
     vector<DeliveryCommand>& commands,
     double& totalDistanceTravelled) const
 {
+    //Initialize variables
     totalDistanceTravelled = 0;
     double oldDist;
     double newDist; 
     vector<DeliveryRequest> newDeliveries = deliveries;
+
+    //First, optimize the delivery order
     m_optimize.optimizeDeliveryOrder(depot, newDeliveries, oldDist, newDist); 
     list<StreetSegment> route;
-    auto it = newDeliveries.begin(); 
+
+
     
     commands.clear();
     int deliveryIndex = 0; 
+    //We will be iterating through the optimized deliveries list. 
     GeoCoord start = depot; 
-
+    auto it = newDeliveries.begin();
     DeliveryCommand food;
     for (; it != newDeliveries.end(); it++)
     {
+      //We are going to route to each food separately
       DeliveryResult tempRes = findRoute(start, it->location, route, commands, totalDistanceTravelled); 
       if (tempRes != DELIVERY_SUCCESS)
           return tempRes; 
       //This is a delivery
       food.initAsDeliverCommand(newDeliveries[deliveryIndex].item);
       commands.push_back(food);
+
+      //Prepare for next iteration of loop 
       start = it->location;
       ++deliveryIndex;
     }
+    //Don't forget to route back as well. 
     findRoute(start, depot, route, commands, totalDistanceTravelled); 
     return DELIVERY_SUCCESS;  
     
@@ -97,8 +107,8 @@ DeliveryResult DeliveryPlannerImpl::findRoute(const GeoCoord& start,
 
         bool proceed;
 
+        //It's a turn (or just proceeding because you can't turn)
         if (!commands.empty() && (commands[commands.size() - 1].streetName() != "" && commands[commands.size() - 1].streetName() != streetName))
-            //It's a turn (or just proceeding because you can't turn)
         {
             proceed = false;
             double angle = angleOfLine(s);

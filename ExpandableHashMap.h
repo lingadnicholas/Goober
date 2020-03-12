@@ -26,14 +26,6 @@ public:
 	// Thus, the hashmap must contain no duplicate keys.
 	void associate(const KeyType& key, const ValueType& value);
 
-
-	// If no association exists with the given key, return nullptr; otherwise,
-	// return a pointer to the value associated with that key. This pointer can be
-	// used to examine that value, and if the hashmap is allowed to be modified, to
-	// modify that value directly within the map (the second overload enables
-	// this). Using a little C++ magic, we have implemented it in terms of the
-	// first overload, which you must implement.
-
 	// for a map that can't be modified, return a pointer to const ValueType
 	const ValueType* find(const KeyType& key) const;
 
@@ -63,21 +55,6 @@ private:
 	int m_bucketsFilled; 
 	std::vector<std::list<Pair>> m_associationsTable; //a vector of lists.
 
-	//Empty all linked lists 
-	void freeLists()
-	{
-		for (int n = 0; n < m_numBuckets; n++)
-		{
-			if (!(m_associationsTable[n]).empty())
-			{
-				auto it = m_associationsTable[n].begin();
-				while (it != m_associationsTable[n].end())
-				{
-					it = m_associationsTable[n].erase(it);
-				}
-			}
-		}
-	}
 	unsigned int retHash(const KeyType& k) const
 	{
 	unsigned int hasher(const KeyType& k); //prototype
@@ -101,7 +78,6 @@ ExpandableHashMap<KeyType, ValueType>::~ExpandableHashMap()
 template<typename KeyType, typename ValueType>
 void ExpandableHashMap<KeyType, ValueType>::reset()
 {
-	freeLists(); 
 	int m_numBuckets = 8; 
 	m_associationsTable.resize(m_numBuckets); //Create a new table with 8 buckets
 	m_numAssociations = 0; 

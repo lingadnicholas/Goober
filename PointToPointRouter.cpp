@@ -1,13 +1,10 @@
 #include "provided.h"
 #include "ExpandableHashMap.h"
-#include <list>
 #include <set>
 #include <stack>
 #include <cfloat>
 #include <map>
-#include <queue> 
 using namespace std;
-using pPair = pair<double, pair<GeoCoord, GeoCoord>>;
 
 class PointToPointRouterImpl
 {
@@ -53,50 +50,8 @@ private:
         double f = FLT_MAX, g = FLT_MAX, h = FLT_MAX;
     };
 
-
-    Node* findNode(list<Node>* curNodes, StreetSegment& thisSeg) const
-    {
-
-        auto listIt = curNodes->begin();
-
-        while (listIt != curNodes->end())
-        {
-            //Find the correct node in the list whose segments are the same as newNo
-            //And give a pointer to it
-            if (listIt->thisSeg == thisSeg)
-            {
-                return &(*listIt);
-                break;
-            }
-            ++listIt;
-        }
-        return nullptr;
-    }
-
     //Traces the path from the source to the destination
-    void tracePath(map<double, Node>& closedList, GeoCoord start, list<StreetSegment>& route, double& totalDistanceTravelled) const
-    {
-        //We use a stack because we are going from the destination to the source. 
-        auto beginning = closedList.find(0);
-        stack<StreetSegment> path;
-
-        Node curNode = beginning->second;
-        for (;;) //While the current segment != the destination
-        {
-            StreetSegment curSeg = curNode.thisSeg;
-            path.push(curSeg);
-            totalDistanceTravelled += distanceEarthMiles(curSeg.end, curSeg.start);
-            if (curNode.parent == nullptr || curSeg.start == start)
-                break;
-            curNode = *curNode.parent;
-        }
-
-        while (!path.empty())
-        {
-            route.push_back(path.top());
-            path.pop();
-        }
-    }
+    void tracePath(map<double, Node>& closedList, GeoCoord start, list<StreetSegment>& route, double& totalDistanceTravelled) const;
 
 };
 
@@ -229,6 +184,29 @@ DeliveryResult PointToPointRouterImpl::generatePointToPointRoute(
     return NO_ROUTE; //Somehow got here. 
 }
 
+void PointToPointRouterImpl::tracePath(map<double, Node>& closedList, GeoCoord start, list<StreetSegment>& route, double& totalDistanceTravelled) const
+{
+    //We use a stack because we are going from the destination to the source. 
+    auto beginning = closedList.find(0);
+    stack<StreetSegment> path;
+
+    Node curNode = beginning->second;
+    for (;;) //While the current segment != the destination
+    {
+        StreetSegment curSeg = curNode.thisSeg;
+        path.push(curSeg);
+        totalDistanceTravelled += distanceEarthMiles(curSeg.end, curSeg.start);
+        if (curNode.parent == nullptr || curSeg.start == start)
+            break;
+        curNode = *curNode.parent;
+    }
+
+    while (!path.empty())
+    {
+        route.push_back(path.top());
+        path.pop();
+    }
+}
 //******************** PointToPointRouter functions ***************************
 
 // These functions simply delegate to PointToPointRouterImpl's functions.
