@@ -15,6 +15,10 @@ unsigned int hasher(const double& d)
 {
     return std::hash<double>()(d); 
 }
+unsigned int hasher(const StreetSegment& s)
+{
+    return std::hash<std::string>()(s.start.latitudeText + s.start.longitudeText + s.end.latitudeText + s.end.longitudeText); 
+}
 
 class StreetMapImpl
 {
@@ -26,8 +30,6 @@ public:
 
     private:
     ExpandableHashMap<GeoCoord, std::vector<StreetSegment>> m_mapData; //This will hold the street segments
-    std::vector<StreetSegment> streetSegs;
-    std::vector<StreetSegment> revStreetSegs;
 };
 
 StreetMapImpl::StreetMapImpl()
@@ -48,7 +50,6 @@ bool StreetMapImpl::load(std::string mapFile)
    
 
     //This will hold each street, which will then get pushed into mapData. 
-    StreetSegment street;
 
     std::string name;
     double coords;
@@ -61,61 +62,41 @@ bool StreetMapImpl::load(std::string mapFile)
         //Get number of coords (i) to expect using >> for integers and cin.ignore
         //Loop i number of times to get following input 
 
-
-       
-        //Get street name with getline if don't need to iterate through lines of Coords
-        
-
-        //m_numTimes is how many lines you need to iterate through to get all the coords of this street
+        //numTimes is how many lines you need to iterate through to get all the coords of this street
         
         infile >> numTimes;        
-        GeoCoord B;
-        GeoCoord E;
+ 
         for (int i = 0; i < numTimes; i++)
         {
-
+            string beginLat, beginLon, endLat, endLon;
             //Read in the street segment data
-            street.name = name;
+            infile >> beginLat >> beginLon >> endLat >> endLon;
 
-            infile >> B.latitudeText >> B.longitudeText >> E.latitudeText >> E.longitudeText;
-            B.latitude = stod(B.latitudeText); 
-            B.longitude = stod(B.longitudeText);
-            E.latitude = stod(E.latitudeText);
-            E.longitude = stod(E.longitudeText); 
-            street.start = B;
-            street.end = E;
-            
+            GeoCoord B(beginLat, beginLon);
+            GeoCoord E(endLat, endLon);
+            StreetSegment street(B, E, name);
+            StreetSegment reverseStreet(E, B, name);
+            std::vector<StreetSegment> streetSegs;
+            std::vector<StreetSegment> reversed;
             streetSegs.push_back(street);
+            reversed.push_back(reverseStreet);
+  
+            vector<StreetSegment> temp;
+            // Create a new street segment vector association IF NECESSARY (if cannot be found already)
+            if (m_mapData.find(B) == nullptr)
+                 m_mapData.associate(B, temp);
+            //And then add 
+            m_mapData.find(B)->push_back(street);
 
-            auto it = streetSegs.begin();
-            while (streetSegs.begin() != streetSegs.end())
-            {
-                std::vector<StreetSegment>* vals = m_mapData.find(B);
-                //If a key with this starting point in the map is not found, create a new association
-                if (vals == nullptr)
-                    m_mapData.associate(B, streetSegs);
-                else //If it is found, add on to its vector
-                    vals->push_back(*it);
-                it = streetSegs.erase(it);
-            }
-            //Then do the same but for the reverse. 
-            street.start = E;
-            street.end = B;
-            revStreetSegs.push_back(street);
-            auto endIt = revStreetSegs.begin();
-            while (revStreetSegs.begin() != revStreetSegs.end())
-            {
-                std::vector<StreetSegment>* vals = m_mapData.find(B);
-                //If a key with this starting point in the map is not found, create a new association
-                if (vals == nullptr)
-                    m_mapData.associate(B, revStreetSegs);
-                else //If it is found, add on to its vector
-                    vals->push_back(*endIt);
-                endIt = revStreetSegs.erase(endIt);
-            }
+            //Do the same thing but for the reverse
+            if (m_mapData.find(E) == nullptr)
+                m_mapData.associate(E, temp);
+
+            m_mapData.find(E)->push_back(reverseStreet);
+           
         } 
-            infile.ignore(10000, '\n'); 
-    
+        infile.ignore(10000, '\n');
+
     }
     return true; 
 }

@@ -20,7 +20,7 @@ private:
     //Proceed is true if command is proceed, false if command is turn
     string angleToDir(double angle, bool& proceed) const;
 
-    void findRoute(const GeoCoord& start,
+    DeliveryResult findRoute(const GeoCoord& start,
         const GeoCoord& end,
         list<StreetSegment>& route,
         vector<DeliveryCommand>& commands,
@@ -43,7 +43,7 @@ DeliveryResult DeliveryPlannerImpl::generateDeliveryPlan(
     vector<DeliveryCommand>& commands,
     double& totalDistanceTravelled) const
 {
-    
+    totalDistanceTravelled = 0;
     double oldDist;
     double newDist; 
     vector<DeliveryRequest> newDeliveries = deliveries;
@@ -58,7 +58,9 @@ DeliveryResult DeliveryPlannerImpl::generateDeliveryPlan(
     DeliveryCommand food;
     for (; it != newDeliveries.end(); it++)
     {
-      findRoute(start, it->location, route, commands, totalDistanceTravelled); 
+      DeliveryResult tempRes = findRoute(start, it->location, route, commands, totalDistanceTravelled); 
+      if (tempRes != DELIVERY_SUCCESS)
+          return tempRes; 
       //This is a delivery
       food.initAsDeliverCommand(newDeliveries[deliveryIndex].item);
       commands.push_back(food);
@@ -70,7 +72,7 @@ DeliveryResult DeliveryPlannerImpl::generateDeliveryPlan(
     
 }
 
-void DeliveryPlannerImpl::findRoute(const GeoCoord& start,
+DeliveryResult DeliveryPlannerImpl::findRoute(const GeoCoord& start,
     const GeoCoord& end,
     list<StreetSegment>& route,
     vector<DeliveryCommand>& commands,
@@ -78,6 +80,10 @@ void DeliveryPlannerImpl::findRoute(const GeoCoord& start,
 {
     route.clear();
     DeliveryResult tempRes = m_router.generatePointToPointRoute(start, end, route, totalDistanceTravelled);
+    if (tempRes != DELIVERY_SUCCESS)
+    {
+        return tempRes; 
+    }
     auto routeIt = route.begin();
     DeliveryCommand cur;
     while (routeIt != route.end())
@@ -122,30 +128,29 @@ void DeliveryPlannerImpl::findRoute(const GeoCoord& start,
                 cur.initAsProceedCommand(dir, streetName, procDist);
                 commands.push_back(cur);
             }
-        }
-        else if (!commands.empty() && (streetName == commands[commands.size() - 1].streetName())) //You are on the same street, so proceed. 
-        {
-            //Angle of direction should be based on the first street segment of command
-            proceed = true;
-            double segmentDist = distanceEarthMiles(s.start, s.end);
-            commands[commands.size() - 1].increaseDistance(segmentDist);
-        }
-        else //This is the first or the last was a delivery
-        {
-            //Calculate the distance it will travel this segment and push a new command onto the commands vector
-            proceed = true;
-            procDist = distanceEarthMiles(s.start, s.end);
-            double angle = angleOfLine(s);
-            string dir = angleToDir(angle, proceed);
-            cur.initAsProceedCommand(dir, streetName, procDist);
-            commands.push_back(cur);
-        }
+            }
+            else if (!commands.empty() && (streetName == commands[commands.size() - 1].streetName())) //You are on the same street, so proceed. 
+            {
+                //Angle of direction should be based on the first street segment of command
+                proceed = true;
+                double segmentDist = distanceEarthMiles(s.start, s.end);
+                commands[commands.size() - 1].increaseDistance(segmentDist);
+            }
+            else //This is the first or the last was a delivery
+            {
+                //Calculate the distance it will travel this segment and push a new command onto the commands vector
+                proceed = true;
+                procDist = distanceEarthMiles(s.start, s.end);
+                double angle = angleOfLine(s);
+                string dir = angleToDir(angle, proceed);
+                cur.initAsProceedCommand(dir, streetName, procDist);
+                commands.push_back(cur);
+            }
 
-
-
-        ++routeIt;
+            ++routeIt;
 
     }
+    return DELIVERY_SUCCESS;
 }
 
 //Proceed is true if command is proceed, false if command is turn

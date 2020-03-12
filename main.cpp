@@ -8,6 +8,48 @@
 #include <vector>
 #include <cassert>
 using namespace std;
+void test5()
+{
+    StreetMap sm;
+
+    sm.load("E:\\OneDrive - UCLA IT Services\\Project4\\mapdata.txt");
+    PointToPointRouter p(&sm);
+
+    GeoCoord start("34.0625329", "-118.4470263");
+    //GeoCoord end("34.0636533", "-118.4470480");
+    GeoCoord end("34.0636344", "-118.4482275");
+    //GeoCoord end("34.0593696","-118.4455875");
+
+    list <StreetSegment> seg;
+    vector <StreetSegment> segs;
+    double dist;
+
+    p.generatePointToPointRoute(start, end, seg, dist);
+
+    //testing deliveries
+    GeoCoord depot = start;
+    vector<DeliveryRequest> deliveries;
+    deliveries.push_back(DeliveryRequest("popcorn", GeoCoord("34.0712323", "-118.4505969")));
+    deliveries.push_back(DeliveryRequest("cake", GeoCoord("34.0687443", "-118.4449195")));
+    deliveries.push_back(DeliveryRequest("coffee", GeoCoord("34.0685657", "-118.4489289")));
+    deliveries.push_back(DeliveryRequest("pizza", GeoCoord("34.0718238", "-118.4525699")));
+    deliveries.push_back(DeliveryRequest("coffee", GeoCoord("34.0666168", "-118.4395786")));
+    deliveries.push_back(DeliveryRequest("pies", GeoCoord("34.0711774", "-118.4495120")));
+    deliveries.push_back(DeliveryRequest("soup", GeoCoord("34.0656797", "-118.4505131")));
+    deliveries.push_back(DeliveryRequest("pasta", GeoCoord("34.0616291", "-118.4416199")));
+    deliveries.push_back(DeliveryRequest("pastries", GeoCoord("34.0636860", "-118.4453568")));
+    deliveries.push_back(DeliveryRequest("potatoes", GeoCoord("34.0683189", "-118.4536522")));
+
+
+
+    DeliveryPlanner dp(&sm);
+    vector<DeliveryCommand> dcs;
+    double totalMiles;
+
+    for (int i = 0; i < 100; i++)
+        dp.generateDeliveryPlan(depot, deliveries, dcs, totalMiles);
+
+}
 void test4()
 {
         StreetMap sm;
@@ -140,6 +182,8 @@ bool parseDelivery(string line, string& lat, string& lon, string& item);
 
 int main()
 {
+
+    
     StreetMap sm;
     //"C:\\Users\\linga\\OneDrive - UCLA IT Services\\Project4\\mapdata.txt"
     //"E:\\OneDrive - UCLA IT Services\\Project4\\mapdata.txt"
@@ -182,6 +226,7 @@ int main()
     std::cout.setf(ios::fixed);
     std::cout.precision(2);
     std::cout << totalMiles << " miles travelled for all deliveries." << endl;
+
 }
 
 bool loadDeliveryRequests(string deliveriesFile, GeoCoord& depot, vector<DeliveryRequest>& v)

@@ -19,42 +19,38 @@ public:
         const GeoCoord& end,
         list<StreetSegment>& route,
         double& totalDistanceTravelled) const;
-private: 
-    const StreetMap* m_streetMap; 
+private:
+    const StreetMap* m_streetMap;
     //Checks if given coordinate is valid or not
     bool isValid(const GeoCoord& check) const
     {
         vector<StreetSegment> a;
         if (m_streetMap->getSegmentsThatStartWith(check, a))
-            return true; 
-        return false; 
+            return true;
+        return false;
     }
     bool isDestination(const GeoCoord& check, const GeoCoord& dest) const
     {
         if (check == dest)
             return true;
-        return false; 
+        return false;
     }
 
-    struct Node 
+    struct Node
     {
-        StreetSegment thisSeg;
-        Node* parent; 
-        // f = g + h 
-        double f = FLT_MAX, g = FLT_MAX, h=FLT_MAX; 
+        Node()
+        {
 
-        bool operator<(const Node& rh)
-        {
-            if (thisSeg.start.latitude < rh.thisSeg.start.latitude && thisSeg.start.longitude < rh.thisSeg.start.longitude)
-                return true;
-            return false;
         }
-        bool operator==(const Node& rh)
+        Node(StreetSegment seg, Node* par, double f, double g, double h)
+            :thisSeg(seg), parent(par), f(f), g(g), h(h)
         {
-            if (thisSeg.start == rh.thisSeg.start && thisSeg.end == rh.thisSeg.end)
-                return true;
-            return false;
+
         }
+        StreetSegment thisSeg;
+        Node* parent;
+        // f = g + h 
+        double f = FLT_MAX, g = FLT_MAX, h = FLT_MAX;
     };
 
 
@@ -74,7 +70,7 @@ private:
             }
             ++listIt;
         }
-        return nullptr; 
+        return nullptr;
     }
 
     //Traces the path from the source to the destination
@@ -82,42 +78,17 @@ private:
     {
         //We use a stack because we are going from the destination to the source. 
         auto beginning = closedList.find(0);
-        totalDistanceTravelled = 0; 
         stack<StreetSegment> path;
-        
-        Node curNode = beginning->second; 
-       for(;;) //While the current segment != the destination
-        {
-           StreetSegment curSeg = curNode.thisSeg; 
-           path.push(curSeg); 
-           totalDistanceTravelled += distanceEarthMiles(curSeg.end, curSeg.start); 
-           if (curNode.parent == nullptr || curSeg.start == start)
-               break;
-           curNode = *curNode.parent; 
-        }
 
-        while (!path.empty())
+        Node curNode = beginning->second;
+        for (;;) //While the current segment != the destination
         {
-            route.push_back(path.top());
-            path.pop();
-        }
-    }
-
-    //Traces the path from the source to the destination
-    void tracePath(Node* end, GeoCoord start, list<StreetSegment>& route, double& totalDistanceTravelled) const
-    {
-        //We use a stack because we are going from the destination to the source. 
-        totalDistanceTravelled = 0;
-        stack<StreetSegment> path;
-        
-        for(;;)
-        {
-            StreetSegment curSeg = end->thisSeg; 
+            StreetSegment curSeg = curNode.thisSeg;
             path.push(curSeg);
             totalDistanceTravelled += distanceEarthMiles(curSeg.end, curSeg.start);
-            if (end->parent == nullptr || curSeg.start == start)
-                break; 
-            end = end->parent; 
+            if (curNode.parent == nullptr || curSeg.start == start)
+                break;
+            curNode = *curNode.parent;
         }
 
         while (!path.empty())
@@ -126,6 +97,7 @@ private:
             path.pop();
         }
     }
+
 };
 
 PointToPointRouterImpl::PointToPointRouterImpl(const StreetMap* sm)
@@ -138,39 +110,34 @@ PointToPointRouterImpl::~PointToPointRouterImpl()
 }
 
 DeliveryResult PointToPointRouterImpl::generatePointToPointRoute(
-        const GeoCoord& start,
-        const GeoCoord& end,
-        list<StreetSegment>& route,
-        double& totalDistanceTravelled) const
+    const GeoCoord& start,
+    const GeoCoord& end,
+    list<StreetSegment>& route,
+    double& totalDistanceTravelled) const
 {
 
     if (!isValid(end))
-        return BAD_COORD; 
+        return BAD_COORD;
     if (isDestination(start, end))
     {
-        route.clear(); 
-        totalDistanceTravelled = 0; 
-        return DELIVERY_SUCCESS; 
+        route.clear();
+        totalDistanceTravelled = 0;
+        return DELIVERY_SUCCESS;
     }
-    
-    //Initialize open list and closed list 
-    map<double, Node> openList; 
-    map<double, Node> closedList; 
 
-    vector<StreetSegment> segs; 
-    m_streetMap->getSegmentsThatStartWith(start, segs); 
+    //Initialize open list and closed list 
+    map<double, Node> openList;
+    map<double, Node> closedList;
+
+    vector<StreetSegment> segs;
+    m_streetMap->getSegmentsThatStartWith(start, segs);
     if (segs.empty())
         return NO_ROUTE;
 
     //Ugliness: Initialize the first Node of the open list. 
-    Node push; 
-    push.h = distanceEarthMiles(start, end); 
-    push.g = 0;
-    push.f = push.h; 
-    push.thisSeg.start = start; 
-    push.thisSeg.end = segs[0].end; 
-    push.thisSeg.name = segs[0].name; 
-    push.parent = nullptr; 
+    StreetSegment s(segs[0].start, segs[0].end, segs[0].name); 
+    double firsth = distanceEarthMiles(start, end);
+    Node push(s, nullptr, firsth, 0, firsth);
     openList[push.f] = push;
     //End of the mess 
 
@@ -178,12 +145,12 @@ DeliveryResult PointToPointRouterImpl::generatePointToPointRoute(
     while (!openList.empty())
     {
         Node current = openList.begin()->second;
-        openList.erase(openList.begin()); 
+        openList.erase(openList.begin());
 
         //Push onto closed list 
         closedList[current.f] = current;
 
-        auto parentItr = closedList.find(current.f); 
+        auto parentItr = closedList.find(current.f);
         Node* parent = &(parentItr->second);
 
         //Find the successors
@@ -191,9 +158,9 @@ DeliveryResult PointToPointRouterImpl::generatePointToPointRoute(
         //OR those whose start points == current startpoint (and don't == this one) 
         vector<StreetSegment> endSuccessors;
         vector<StreetSegment> startSuccessors;
-        GeoCoord endSuc(current.thisSeg.end); 
+        GeoCoord endSuc(current.thisSeg.end);
 
-        GeoCoord startSuc(current.thisSeg.end); 
+        GeoCoord startSuc(current.thisSeg.end);
         m_streetMap->getSegmentsThatStartWith(endSuc, endSuccessors);
         m_streetMap->getSegmentsThatStartWith(startSuc, startSuccessors);
         auto it = startSuccessors.begin();
@@ -217,54 +184,48 @@ DeliveryResult PointToPointRouterImpl::generatePointToPointRoute(
                 ++it;
             }
         }
-        
+
         //For each neighbor
         auto combinedIt = combined.begin();
         for (int i = 0; combinedIt != combined.end(); i++, ++combinedIt)
         {
             //Get all the information for this new neighbor
             double newg = 0, newh = 0, newf = 0;
-  
+
             //This part is a mess...... I'm just initializing and pushing neighbors
-            Node neighbor;
             //Set coordinates
-            GeoCoord neighborStart(combined[i].start);
-            GeoCoord neighborEnd(combined[i].end); 
-            neighbor.thisSeg.start = neighborStart;
-            neighbor.thisSeg.end = neighborEnd;
-            neighbor.thisSeg.name = combined[i].name; 
+            StreetSegment newS(combined[i].start, combined[i].end, combined[i].name);
             //Set g, h, f
-            newg = distanceEarthMiles(current.thisSeg.start, neighbor.thisSeg.start);
+            newg = distanceEarthMiles(current.thisSeg.start, newS.start);
             newh = distanceEarthMiles(combined[i].end, end); //Distance to end
             newf = newg + newh;
-            neighbor.f = newf; neighbor.h = newf; neighbor.g = newg;
-            neighbor.parent = parent;  //Set parent
+            Node neighbor(newS, parent, newf, newg, newh); 
             //End of the mess
 
             //If neighbor's ending coordinate is the goal, stop the search
-          
-            if (neighbor.thisSeg.end == end) 
+
+            if (neighbor.thisSeg.end == end)
             {
                 //Push neighbor and current onto closedList 
-                neighbor.f = 0; 
-                closedList[neighbor.f] = neighbor; 
+                neighbor.f = 0;
+                closedList[neighbor.f] = neighbor;
                 closedList[current.f] = current;
-                tracePath(closedList, start, route, totalDistanceTravelled); 
+                tracePath(closedList, start, route, totalDistanceTravelled);
                 return DELIVERY_SUCCESS;
-            } 
+            }
 
 
 
-            auto openFound = openList.find(newf); 
+            auto openFound = openList.find(newf);
             auto closedFound = closedList.find(newf);
             //If not found, add neighbor to open list, so we can examine its neighbors. 
             if (openFound == openList.end() && closedFound == closedList.end())
             {
-                openList[newf] = neighbor; 
+                openList[newf] = neighbor;
             }
         }
     }
-    
+
     return NO_ROUTE; //Somehow got here. 
 }
 
@@ -284,10 +245,10 @@ PointToPointRouter::~PointToPointRouter()
 }
 
 DeliveryResult PointToPointRouter::generatePointToPointRoute(
-        const GeoCoord& start,
-        const GeoCoord& end,
-        list<StreetSegment>& route,
-        double& totalDistanceTravelled) const
+    const GeoCoord& start,
+    const GeoCoord& end,
+    list<StreetSegment>& route,
+    double& totalDistanceTravelled) const
 {
     return m_impl->generatePointToPointRoute(start, end, route, totalDistanceTravelled);
 }

@@ -17,11 +17,11 @@ enum DeliveryResult
 struct GeoCoord
 {
     GeoCoord(std::string lat, std::string lon)
-     : latitudeText(lat), longitudeText(lon), latitude(std::stod(lat)), longitude(std::stod(lon))
+        : latitudeText(lat), longitudeText(lon), latitude(std::stod(lat)), longitude(std::stod(lon))
     {}
 
     GeoCoord()
-     : latitudeText("0"), longitudeText("0"), latitude(0), longitude(0)
+        : latitudeText("0"), longitudeText("0"), latitude(0), longitude(0)
     {}
 
     std::string latitudeText;
@@ -33,7 +33,7 @@ struct GeoCoord
 inline
 bool operator==(const GeoCoord& lhs, const GeoCoord& rhs)
 {
-    return lhs.latitudeText == rhs.latitudeText  &&  lhs.longitudeText == rhs.longitudeText;
+    return lhs.latitudeText == rhs.latitudeText && lhs.longitudeText == rhs.longitudeText;
 }
 
 inline
@@ -42,7 +42,7 @@ bool operator!=(const GeoCoord& lhs, const GeoCoord& rhs)
     return !(lhs == rhs);
 }
 
-  // This would be needed only if something required some ordering relation
+// This would be needed only if something required some ordering relation
 inline
 bool operator<(const GeoCoord& lhs, const GeoCoord& rhs)
 {
@@ -54,7 +54,7 @@ bool operator<(const GeoCoord& lhs, const GeoCoord& rhs)
 struct StreetSegment
 {
     StreetSegment(const GeoCoord& s, const GeoCoord& e, std::string streetName)
-     : start(s), end(e), name(streetName)
+        : start(s), end(e), name(streetName)
     {}
 
     StreetSegment()
@@ -68,7 +68,7 @@ struct StreetSegment
 inline
 bool operator==(const StreetSegment& lhs, const StreetSegment& rhs)
 {
-    return lhs.start == rhs.start  &&  lhs.end == rhs.end;
+    return lhs.start == rhs.start && lhs.end == rhs.end;
 }
 
 class StreetMapImpl;
@@ -80,7 +80,7 @@ public:
     ~StreetMap();
     bool load(std::string mapFile);
     bool getSegmentsThatStartWith(const GeoCoord& gc, std::vector<StreetSegment>& segs) const;
-      // We prevent a StreetMap object from being copied or assigned.
+    // We prevent a StreetMap object from being copied or assigned.
     StreetMap(const StreetMap&) = delete;
     StreetMap& operator=(const StreetMap&) = delete;
 private:
@@ -99,7 +99,7 @@ public:
         const GeoCoord& end,
         std::list<StreetSegment>& route,
         double& totalDistanceTravelled) const;
-      // We prevent a PointToPointRouter object from being copied or assigned.
+    // We prevent a PointToPointRouter object from being copied or assigned.
     PointToPointRouter(const PointToPointRouter&) = delete;
     PointToPointRouter& operator=(const PointToPointRouter&) = delete;
 private:
@@ -109,7 +109,7 @@ private:
 struct DeliveryRequest
 {
     DeliveryRequest(std::string it, const GeoCoord& loc)
-     : item(it), location(loc)
+        : item(it), location(loc)
     {}
     std::string item;
     GeoCoord location;
@@ -127,7 +127,7 @@ public:
         std::vector<DeliveryRequest>& deliveries,
         double& oldCrowDistance,
         double& newCrowDistance) const;
-      // We prevent a DeliveryOptimizer object from being copied or assigned.
+    // We prevent a DeliveryOptimizer object from being copied or assigned.
     DeliveryOptimizer(const DeliveryOptimizer&) = delete;
     DeliveryOptimizer& operator=(const DeliveryOptimizer&) = delete;
 private:
@@ -138,10 +138,10 @@ class DeliveryCommand
 {
 public:
     DeliveryCommand()
-     : m_type(INVALID)
+        : m_type(INVALID)
     {}
 
-      // make this DeliveryCommand a Proceed command
+    // make this DeliveryCommand a Proceed command
     void initAsProceedCommand(std::string dir, std::string streetName, double dist)
     {
         m_type = PROCEED;
@@ -150,7 +150,7 @@ public:
         m_distance = dist;
     }
 
-      // make this DeliveryCommand a Turn command
+    // make this DeliveryCommand a Turn command
     void initAsTurnCommand(std::string dir, std::string streetName)
     {
         m_type = TURN;
@@ -159,7 +159,7 @@ public:
         m_distance = 0;
     }
 
-      // make this DeliveryCommand a Deliver command
+    // make this DeliveryCommand a Deliver command
     void initAsDeliverCommand(std::string item)
     {
         m_type = DELIVER;
@@ -181,18 +181,18 @@ public:
         std::ostringstream oss;
         switch (m_type)
         {
-          case INVALID:
+        case INVALID:
             oss << "<invalid>";
             break;
-          case TURN:
+        case TURN:
             oss << "Turn " << m_direction << " on " << m_streetName;
             break;
-          case PROCEED:
+        case PROCEED:
             oss.setf(std::ios::fixed);
             oss.precision(2);
             oss << "Proceed " << m_direction << " on " << m_streetName << " for " << m_distance << " miles";
             break;
-          case DELIVER:
+        case DELIVER:
             oss << "DELIVER " << m_item;
             break;
         }
@@ -220,7 +220,7 @@ public:
         const std::vector<DeliveryRequest>& deliveries,
         std::vector<DeliveryCommand>& commands,
         double& totalDistanceTravelled) const;
-      // We prevent a DeliveryPlanner object from being copied or assigned.
+    // We prevent a DeliveryPlanner object from being copied or assigned.
     DeliveryPlanner(const DeliveryPlanner&) = delete;
     DeliveryPlanner& operator=(const DeliveryPlanner&) = delete;
 private:
@@ -238,7 +238,7 @@ inline double deg2rad(double deg) {
     return deg * PI / 180;
 }
 
-  // radians to decimal degrees
+// radians to decimal degrees
 inline double rad2deg(double rad) {
     static const double PI = 4 * std::atan(1.0);
     return rad * 180 / PI;

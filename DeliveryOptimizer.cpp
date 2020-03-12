@@ -65,6 +65,11 @@ void DeliveryOptimizerImpl::optimizeDeliveryOrder(
 {
     //First, compute old crow distance. 
     oldCrowDistance = computeCrowDistance(depot, deliveries); 
+    if (deliveries.size() == 1)
+    {
+        newCrowDistance = oldCrowDistance;
+        return;
+    }
     double tempCrowDistance = oldCrowDistance;
     GeoCoord start = depot; 
     vector<DeliveryRequest> actualBestSol = deliveries; //Keeps track of best
@@ -72,7 +77,7 @@ void DeliveryOptimizerImpl::optimizeDeliveryOrder(
     //Attempt at simulated annealing: 
     //i is how many chances you get to improve, j is a hard cap
     
-    for (int i = 0, j = 0,  probability = 90; j < 500; i++, j++, probability -= 4) //Cap number of attempts = to 5000
+    for (int i = 0, j = 0,  probability = 90; j < 5000; i++, j++, probability -= 4) //Cap number of attempts = to 5000
     {
         if (i >= 50) //No improvements after 50 tries.
             break; 
