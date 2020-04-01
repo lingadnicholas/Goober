@@ -39,15 +39,15 @@ private:
         {
 
         }
-        Node(StreetSegment seg, Node* par, double f, double g, double h)
-            :thisSeg(seg), parent(par), f(f), g(g), h(h)
+        Node(StreetSegment seg, Node* par, double f, double g)
+            :thisSeg(seg), parent(par), f(f), g(g)
         {
 
         }
         StreetSegment thisSeg;
         Node* parent;
-        // f = g + h 
-        double f = FLT_MAX, g = FLT_MAX, h = FLT_MAX;
+        // In A*, f = g + h, but here, we only use g and f.
+        double f = FLT_MAX, g = FLT_MAX;
     };
 
     //Traces the path from the source to the destination
@@ -89,10 +89,11 @@ DeliveryResult PointToPointRouterImpl::generatePointToPointRoute(
     if (segs.empty())
         return NO_ROUTE;
 
+    //This is not A*, but it still uses some type of heuristic
     //Ugliness: Initialize the first Node of the open list. 
     StreetSegment s(segs[0].start, segs[0].end, segs[0].name); 
-    double firsth = distanceEarthMiles(start, end);
-    Node push(s, nullptr, firsth, 0, firsth);
+    double firstf = distanceEarthMiles(start, end);
+    Node push(s, nullptr, firstf, 0);
     openList[push.f] = push;
     //End of the mess 
 
@@ -145,16 +146,15 @@ DeliveryResult PointToPointRouterImpl::generatePointToPointRoute(
         for (int i = 0; combinedIt != combined.end(); i++, ++combinedIt)
         {
             //Get all the information for this new neighbor
-            double newg = 0, newh = 0, newf = 0;
+            double newg = 0, newf = 0;
 
             //This part is a mess...... I'm just initializing and pushing neighbors
             //Set coordinates
             StreetSegment newS(combined[i].start, combined[i].end, combined[i].name);
-            //Set g, h, f
+            //Set g, f
             newg = distanceEarthMiles(current.thisSeg.start, newS.start);
-            newh = distanceEarthMiles(combined[i].end, end); //Distance to end
-            newf = newg + newh;
-            Node neighbor(newS, parent, newf, newg, newh); 
+            newf = newg + distanceEarthMiles(combined[i].end, end); //Distance to end
+            Node neighbor(newS, parent, newf, newg);
             //End of the mess
 
             //If neighbor's ending coordinate is the goal, stop the search
@@ -169,11 +169,9 @@ DeliveryResult PointToPointRouterImpl::generatePointToPointRoute(
                 return DELIVERY_SUCCESS;
             }
 
-
-
             auto openFound = openList.find(newf);
             auto closedFound = closedList.find(newf);
-            //If not found, add neighbor to open list, so we can examine its neighbors. 
+            //If not found add to open list so we can look at that neighbor later
             if (openFound == openList.end() && closedFound == closedList.end())
             {
                 openList[newf] = neighbor;
@@ -191,16 +189,19 @@ void PointToPointRouterImpl::tracePath(map<double, Node>& closedList, GeoCoord s
     stack<StreetSegment> path;
 
     Node curNode = beginning->second;
-    for (;;) //While the current segment != the destination
+    StreetSegment curSeg = curNode.thisSeg;
+    //Until you reach the beginning: 
+    for (;;) 
     {
-        StreetSegment curSeg = curNode.thisSeg;
+        curSeg = curNode.thisSeg; 
         path.push(curSeg);
         totalDistanceTravelled += distanceEarthMiles(curSeg.end, curSeg.start);
-        if (curNode.parent == nullptr || curSeg.start == start)
+        if (curNode.parent == nullptr) //We've reached the end
             break;
         curNode = *curNode.parent;
     }
 
+    //We put everything on a stack (LIFO) so now we can pop beginning to end
     while (!path.empty())
     {
         route.push_back(path.top());
